@@ -1,0 +1,175 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <!-- Squircle Clip -->
+    <clipPath id="squircle-clip">
+      <rect x="24" y="24" width="976" height="976" rx="220" />
+    </clipPath>
+
+    <!-- Electric Pulse Gradient -->
+    <linearGradient id="pulse-glow" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#00f5ff"/>
+      <stop offset="50%" stop-color="#6366f1"/>
+      <stop offset="100%" stop-color="#8b5cf6"/>
+    </linearGradient>
+
+    <!-- Intense Eye Cyan Glow -->
+    <linearGradient id="eye-glow" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#7df9ff"/>
+      <stop offset="50%" stop-color="#00f5ff"/>
+      <stop offset="100%" stop-color="#0284c7"/>
+    </linearGradient>
+
+    <!-- Beak Metal Gradient -->
+    <linearGradient id="beak-glow" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#f59e0b"/>
+      <stop offset="100%" stop-color="#d97706"/>
+    </linearGradient>
+
+    <!-- Drop Shadow for Dimensionality -->
+    <filter id="subtle-shadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="16" stdDeviation="20" flood-color="#0f172a" flood-opacity="0.16" />
+    </filter>
+  </defs>
+
+  <!-- Luxury White Squircle Container -->
+  <rect x="24" y="24" width="976" height="976" rx="220" fill="#ffffff" stroke="#e2e8f0" stroke-width="6" />
+
+  <g clip-path="url(#squircle-clip)">
+    <g transform="translate(512, 512)" filter="url(#subtle-shadow)">
+
+      <!-- Hexagonal Architectural Gateway Frame (Evaluation Matrix Enclosure) -->
+      <polygon points="
+        0,-390
+        338,-195
+        338,195
+        0,390
+        -338,195
+        -338,-195
+      " fill="none" stroke="#0f172a" stroke-width="38" stroke-linejoin="round" />
+
+      <!-- Inner Telemetry Dashed Pulse Ring -->
+      <polygon points="
+        0,-355
+        307,-177
+        307,177
+        0,355
+        -307,177
+        -307,-177
+      " fill="none" stroke="#6366f1" stroke-width="4" opacity="0.45" stroke-dasharray="16, 12" stroke-linejoin="round" />
+
+      <!-- Outer Matrix Gateway Nodes -->
+      <circle cx="0" cy="-390" r="10" fill="#00f5ff" />
+      <circle cx="338" cy="-195" r="8" fill="#6366f1" opacity="0.8" />
+      <circle cx="338" cy="195" r="8" fill="#6366f1" opacity="0.8" />
+      <circle cx="0" cy="390" r="10" fill="#00f5ff" />
+      <circle cx="-338" cy="195" r="8" fill="#6366f1" opacity="0.8" />
+      <circle cx="-338" cy="-195" r="8" fill="#6366f1" opacity="0.8" />
+
+      <!-- ============================================================ -->
+      <!-- THE PRECISION PULSE FALCON: ORIGAMI BENCHMARK MASCOT         -->
+      <!-- ============================================================ -->
+
+      <!-- Solid Contiguous Watertight Silhouette Backing -->
+      <polygon points="
+        0,-340
+        60,-305 130,-310 95,-220 180,-140 240,-30 255,100 205,200 135,290 0,360
+        -135,290 -205,200 -255,100 -240,-30 -180,-140 -95,-220 -130,-310 -60,-305
+      " fill="#060911" />
+
+      <!-- DORSAL CREST (Telemetry Apex) -->
+      <polygon points="0,-340 -40,-250 0,-280" fill="#6366f1" />
+      <polygon points="0,-340 40,-250 0,-280" fill="#4f46e5" />
+      <polygon points="0,-340 0,-280 0,-180" fill="url(#pulse-glow)" stroke="#00f5ff" stroke-width="1.5" />
+
+      <!-- CROWN AND TEMPLE PLATES -->
+      <!-- Left Crown -->
+      <polygon points="0,-280 -60,-305 -95,-220 -40,-250" fill="#1e293b" />
+      <polygon points="-40,-250 -95,-220 -115,-165 -45,-175" fill="#334155" />
+      <!-- Right Crown (In Shadow) -->
+      <polygon points="0,-280 60,-305 95,-220 40,-250" fill="#0f172a" />
+      <polygon points="40,-250 95,-220 115,-165 45,-175" fill="#1e293b" />
+
+      <!-- FOREHEAD KEYSTONE (Key Light) -->
+      <polygon points="0,-280 -40,-250 -45,-175 0,-180" fill="#475569" />
+      <polygon points="0,-280 40,-250 45,-175 0,-180" fill="#1e293b" />
+
+      <!-- BROW RIDGE (Sharp Raptor Visor) -->
+      <polygon points="0,-180 -45,-175 -95,-120 0,-115" fill="#64748b" />
+      <polygon points="0,-180 45,-175 95,-120 0,-115" fill="#334155" />
+
+      <!-- TEMPLE WINGS -->
+      <polygon points="-115,-165 -95,-220 -180,-140" fill="#1e293b" />
+      <polygon points="115,-165 95,-220 180,-140" fill="#0b0f19" />
+
+      <polygon points="-115,-165 -180,-140 -155,-70 -95,-120" fill="#334155" />
+      <polygon points="115,-165 180,-140 155,-70 95,-120" fill="#151d2a" />
+
+      <!-- EYE SOCKETS AND SENTINEL CYAN OPTICS -->
+      <!-- Left Eye Dark Bezel -->
+      <polygon points="-45,-175 -95,-120 -40,-95" fill="#030712" />
+      <!-- Left Eye Cyan Jewel -->
+      <polygon points="-48,-160 -90,-122 -44,-102" fill="url(#eye-glow)" stroke="#00f5ff" stroke-width="1.5" />
+      <polygon points="-58,-140 -62,-136 -58,-132 -54,-136" fill="#ffffff" opacity="0.95" />
+
+      <!-- Right Eye Dark Bezel -->
+      <polygon points="45,-175 95,-120 40,-95" fill="#030712" />
+      <!-- Right Eye Cyan Jewel -->
+      <polygon points="48,-160 90,-122 44,-102" fill="url(#eye-glow)" stroke="#00f5ff" stroke-width="1.5" />
+      <polygon points="58,-140 62,-136 58,-132 54,-136" fill="#ffffff" opacity="0.95" />
+
+      <!-- MALAR STRIPES (Cheek Markings - Low Poly Facets) -->
+      <polygon points="-95,-120 -155,-70 -130,20 -70,-30" fill="#0f172a" />
+      <polygon points="95,-120 155,-70 130,20 70,-30" fill="#090d16" />
+
+      <polygon points="-155,-70 -240,-30 -210,50 -130,20" fill="#1e293b" />
+      <polygon points="155,-70 240,-30 210,50 130,20" fill="#0b0f19" />
+
+      <!-- SNOUT / CULMEN (Nose Bridge) -->
+      <polygon points="0,-115 -40,-95 -35,-15 0,-25" fill="#475569" />
+      <polygon points="0,-115 40,-95 35,-15 0,-25" fill="#1e293b" />
+
+      <!-- RAPTOR BEAK HOOK (Precision Golden-Amber Accent) -->
+      <polygon points="0,-25 -35,-15 -28,55 0,110" fill="url(#beak-glow)" stroke="#f59e0b" stroke-width="1" />
+      <polygon points="0,-25 35,-15 28,55 0,110" fill="#b45309" stroke="#f59e0b" stroke-width="1" />
+      <polygon points="0,-25 0,110 -15,50" fill="#fbbf24" opacity="0.8" />
+
+      <!-- CHEEKS AND FLANKS -->
+      <polygon points="-40,-95 -70,-30 -35,-15" fill="#334155" />
+      <polygon points="40,-95 70,-30 35,-15" fill="#151d2a" />
+
+      <polygon points="-70,-30 -130,20 -85,90 -28,55" fill="#1e293b" />
+      <polygon points="70,-30 130,20 85,90 28,55" fill="#0f172a" />
+
+      <!-- LOWER MANDIBLE AND CHIN -->
+      <polygon points="0,110 -28,55 -30,135 0,155" fill="#1e293b" />
+      <polygon points="0,110 28,55 30,135 0,155" fill="#0f172a" />
+
+      <!-- CHEST GORGET (The Waveguide / Pulse Telemetry Chevron) -->
+      <polygon points="0,155 -30,135 -85,90 -120,180 0,250" fill="#1e293b" />
+      <polygon points="0,155 30,135 85,90 120,180 0,250" fill="#0f172a" />
+
+      <!-- WING SHOULDERS -->
+      <polygon points="-130,20 -210,50 -255,100 -205,200 -120,180" fill="#334155" />
+      <polygon points="130,20 210,50 255,100 205,200 120,180" fill="#151d2a" />
+
+      <!-- PULSE HEART CHEVRON (Center Benchmark Pulse Core) -->
+      <polygon points="
+        0,185
+        -40,210
+        -15,225
+        -30,255
+        0,235
+        30,255
+        15,225
+        40,210
+      " fill="url(#pulse-glow)" stroke="#00f5ff" stroke-width="2" />
+
+      <!-- LOWER CHEST PLATES -->
+      <polygon points="0,250 -120,180 -135,290 0,360" fill="#334155" />
+      <polygon points="0,250 120,180 135,290 0,360" fill="#1e293b" />
+      <polygon points="-120,180 -205,200 -135,290" fill="#1e293b" />
+      <polygon points="120,180 205,200 135,290" fill="#0b0f19" />
+
+    </g>
+  </g>
+</svg>

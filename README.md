@@ -20,6 +20,8 @@
 
 EvalPulse is a developer studio and automated evaluation matrix for teams shipping LLM applications to production. It benchmarks model candidates against golden test sets, measures response latencies (p50, p95), monitors token expenses, and detects regressions before new prompt versions reach production.
 
+![EvalPulse Demo](docs/images/evalpulse_demo.gif)
+
 ![EvalPulse Overview Dashboard](docs/images/overview-dashboard.png)
 
 ## Core Capabilities
