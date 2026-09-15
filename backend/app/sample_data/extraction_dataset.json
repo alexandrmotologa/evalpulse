@@ -1,0 +1,57 @@
+{
+  "id": "extraction-v1",
+  "name": "Financial Invoice Data Extraction",
+  "description": "Benchmarks extraction accuracy for invoice number, vendor, line items, tax rates, and totals against strict numerical and string schemas.",
+  "schema_definition": {
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "type": "object",
+    "required": ["invoice_number", "vendor_name", "subtotal", "tax_amount", "total_amount", "currency", "line_items"],
+    "properties": {
+      "invoice_number": {"type": "string"},
+      "vendor_name": {"type": "string"},
+      "subtotal": {"type": "number"},
+      "tax_amount": {"type": "number"},
+      "total_amount": {"type": "number"},
+      "currency": {"type": "string"},
+      "line_items": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": ["description", "quantity", "unit_price", "amount"],
+          "properties": {
+            "description": {"type": "string"},
+            "quantity": {"type": "integer"},
+            "unit_price": {"type": "number"},
+            "amount": {"type": "number"}
+          }
+        }
+      }
+    }
+  },
+  "test_cases": [
+    {
+      "id": "inv-001",
+      "input_data": {
+        "raw_invoice_text": "ACME CLOUD CORP\nInvoice #INV-2026-8819\nDate: Jan 12, 2026\nDescription: Virtual Private Cloud Cluster (Qty: 2) @ $450.00 = $900.00\nLoad Balancer Addon (Qty: 1) @ $100.00 = $100.00\nSubtotal: $1000.00\nVAT 10%: $100.00\nTotal Due: $1100.00 USD"
+      },
+      "expected_output": "{\"invoice_number\": \"INV-2026-8819\", \"vendor_name\": \"ACME CLOUD CORP\", \"subtotal\": 1000.0, \"tax_amount\": 100.0, \"total_amount\": 1100.0, \"currency\": \"USD\", \"line_items\": [{\"description\": \"Virtual Private Cloud Cluster\", \"quantity\": 2, \"unit_price\": 450.0, \"amount\": 900.0}, {\"description\": \"Load Balancer Addon\", \"quantity\": 1, \"unit_price\": 100.0, \"amount\": 100.0}]}",
+      "metadata": {"type": "cloud_hosting"}
+    },
+    {
+      "id": "inv-002",
+      "input_data": {
+        "raw_invoice_text": "VERTEX DESIGN CONSULTING LLC\nBill To: Client Inc\nRef: VTX-4401\nDesign System Figma Audit (Qty: 1) @ $2500.00 -> $2500.00\nIcon Pack Procedural (Qty: 1) @ $800.00 -> $800.00\nSubtotal: $3300.00\nSales Tax (0%): $0.00\nFinal Amount: $3300.00 USD"
+      },
+      "expected_output": "{\"invoice_number\": \"VTX-4401\", \"vendor_name\": \"VERTEX DESIGN CONSULTING LLC\", \"subtotal\": 3300.0, \"tax_amount\": 0.0, \"total_amount\": 3300.0, \"currency\": \"USD\", \"line_items\": [{\"description\": \"Design System Figma Audit\", \"quantity\": 1, \"unit_price\": 2500.0, \"amount\": 2500.0}, {\"description\": \"Icon Pack Procedural\", \"quantity\": 1, \"unit_price\": 800.0, \"amount\": 800.0}]}",
+      "metadata": {"type": "consulting"}
+    },
+    {
+      "id": "inv-003",
+      "input_data": {
+        "raw_invoice_text": "APEX DATA SYSTEMS GMBH\nRechnung Nr: DE-99120\nDatum: 2026-02-01\nPosten: Dedicated Server EPYC 9654 (Qty: 1) x 750.00 EUR = 750.00 EUR\nNVMe Storage 3.84TB (Qty: 2) x 125.00 EUR = 250.00 EUR\nZwischensumme: 1000.00 EUR\nMwSt 19%: 190.00 EUR\nGesamtbetrag: 1190.00 EUR"
+      },
+      "expected_output": "{\"invoice_number\": \"DE-99120\", \"vendor_name\": \"APEX DATA SYSTEMS GMBH\", \"subtotal\": 1000.0, \"tax_amount\": 190.0, \"total_amount\": 1190.0, \"currency\": \"EUR\", \"line_items\": [{\"description\": \"Dedicated Server EPYC 9654\", \"quantity\": 1, \"unit_price\": 750.0, \"amount\": 750.0}, {\"description\": \"NVMe Storage 3.84TB\", \"quantity\": 2, \"unit_price\": 125.0, \"amount\": 250.0}]}",
+      "metadata": {"type": "hardware"}
+    }
+  ]
+}
