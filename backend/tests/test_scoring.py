@@ -64,3 +64,13 @@ def test_evaluate_test_case():
     scores, composite, passed = evaluate_test_case("urgent refund", "urgent refund", metrics)
     assert composite == 1.0
     assert passed is True
+
+def test_llm_judge():
+    from app.core.scoring import calculate_llm_judge_heuristic
+    score, reason = calculate_llm_judge_heuristic(
+        "Hello Sarah, thank you for reaching out. We have processed your refund.",
+        expected="Refund processed successfully.",
+        rubric="Polite tone and concise answer.",
+    )
+    assert score >= 0.6
+    assert len(reason) > 0

@@ -1,4 +1,6 @@
 import asyncio
+import csv
+import io
 import json
 import logging
 from contextlib import asynccontextmanager
@@ -6,14 +8,19 @@ from typing import Dict, List, Optional
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, BackgroundTasks, Query
+from fastapi.responses import HTMLResponse, PlainTextResponse
 from fastapi.middleware.cors import CORSMiddleware
 from sse_starlette.sse import EventSourceResponse
 
 from app.config import SAMPLE_DATA_DIR
-from app.models.dataset import Dataset, DatasetCreateRequest
-from app.models.evaluation import RunRequest, EvaluationRun, RunComparison, ScoringMetricConfig
-from app.core.pricing import get_supported_models
-from app.core.matrix_runner import MatrixRunner
+from app.models.dataset import Dataset, DatasetCreateRequest, TestCase
+from app.models.evaluation import RunRequest, EvaluationRun, RunComparison, ScoringMetricConfig, TestCaseResult
+from app.models.playground import PlaygroundRequest, PlaygroundResponse
+from app.core.pricing import get_supported_models, calculate_cost
+from app.core.matrix_runner import MatrixRunner, render_prompt_template
+from app.core.providers import check_ollama_status, execute_prompt
+from app.core.scoring import evaluate_test_case
+from app.core.report import generate_html_report
 from app.storage.db import (
     init_db,
     save_dataset,
@@ -28,7 +35,6 @@ from app.storage.db import (
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("evalpulse")
 
-# In-memory pub/sub for SSE streams
 RUN_EVENT_QUEUES: Dict[str, List[asyncio.Queue]] = {}
 
 def seed_sample_datasets():
@@ -54,7 +60,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="EvalPulse API",
     description="LLM Evaluation & Regression Engine",
-    version="0.1.0",
+    version="0.2.0",
     lifespan=lifespan,
 )
 
@@ -97,12 +103,30 @@ def health_check():
     return {
         "status": "healthy",
         "service": "EvalPulse Engine",
-        "version": "0.1.0",
+        "version": "0.2.0",
     }
 
+@app.get("/api/providers/ollama")
+async def get_ollama_status():
+    """Check Ollama availability and discover local models."""
+    return await check_ollama_status()
+
 @app.get("/api/models")
-def get_models():
-    return {"models": get_supported_models()}
+async def get_models():
+    """Return configured models plus any locally discovered Ollama models."""
+    models = get_supported_models()
+    ollama_info = await check_ollama_status()
+    if ollama_info.get("online"):
+        for m in ollama_info.get("models", []):
+            models.append({
+                "id": f"ollama/{m}",
+                "name": f"Ollama: {m}",
+                "provider": "Ollama (Local)",
+                "inputPricePerM": 0.0,
+                "outputPricePerM": 0.0,
+                "isMock": False,
+            })
+    return {"models": models, "ollama_online": ollama_info.get("online", False)}
 
 @app.get("/api/datasets", response_model=List[Dataset])
 def get_all_datasets():
@@ -126,6 +150,167 @@ def create_dataset(payload: DatasetCreateRequest):
     save_dataset(dataset)
     return dataset
 
+@app.post("/api/datasets/import", response_model=Dataset)
+def import_dataset(payload: dict):
+    """Import dataset from raw JSONL, CSV or JSON text."""
+    format_type = payload.get("format", "json").lower()
+    content = payload.get("content", "").strip()
+    name = payload.get("name", "Imported Dataset")
+    description = payload.get("description", "Imported via studio uploader")
+    
+    if not content:
+        raise HTTPException(status_code=400, detail="Content payload cannot be empty")
+
+    test_cases: List[TestCase] = []
+
+    try:
+        if format_type == "jsonl":
+            for line in content.splitlines():
+                line = line.strip()
+                if line:
+                    item = json.loads(line)
+                    test_cases.append(
+                        TestCase(
+                            input_data=item.get("input_data", item.get("inputs", item)),
+                            expected_output=item.get("expected_output", item.get("output")),
+                            metadata=item.get("metadata", {}),
+                        )
+                    )
+        elif format_type == "csv":
+            reader = csv.DictReader(io.StringIO(content))
+            for idx, row in enumerate(reader):
+                expected = row.pop("expected_output", row.pop("output", None))
+                test_cases.append(
+                    TestCase(
+                        id=f"row-{idx+1}",
+                        input_data=row,
+                        expected_output=expected,
+                    )
+                )
+        else:
+            # JSON format
+            raw = json.loads(content)
+            if isinstance(raw, list):
+                for item in raw:
+                    test_cases.append(TestCase(**item))
+            elif isinstance(raw, dict) and "test_cases" in raw:
+                test_cases = [TestCase(**tc) for tc in raw["test_cases"]]
+                name = raw.get("name", name)
+                description = raw.get("description", description)
+            else:
+                raise ValueError("Unrecognized JSON dataset structure")
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Failed to parse {format_type.upper()} dataset: {str(e)}")
+
+    dataset = Dataset(
+        name=name,
+        description=description,
+        test_cases=test_cases,
+    )
+    save_dataset(dataset)
+    return dataset
+
+@app.get("/api/datasets/{dataset_id}/export")
+def export_dataset(dataset_id: str, format: str = Query("json", pattern="^(json|jsonl|csv)$")):
+    """Export dataset in JSON, JSONL, or CSV format."""
+    ds = get_dataset(dataset_id)
+    if not ds:
+        raise HTTPException(status_code=404, detail="Dataset not found")
+
+    if format == "jsonl":
+        lines = [json.dumps(tc.model_dump()) for tc in ds.test_cases]
+        return PlainTextResponse(
+            "\n".join(lines),
+            media_type="application/x-ndjson",
+            headers={"Content-Disposition": f"attachment; filename={ds.id}.jsonl"},
+        )
+    elif format == "csv":
+        if not ds.test_cases:
+            return PlainTextResponse("", media_type="text/csv")
+        
+        # Flatten keys
+        first_input = ds.test_cases[0].input_data
+        fieldnames = ["id", "expected_output"] + list(first_input.keys())
+        output = io.StringIO()
+        writer = csv.DictWriter(output, fieldnames=fieldnames)
+        writer.writeheader()
+        for tc in ds.test_cases:
+            row = {"id": tc.id, "expected_output": tc.expected_output or ""}
+            row.update(tc.input_data)
+            writer.writerow(row)
+        return PlainTextResponse(
+            output.getvalue(),
+            media_type="text/csv",
+            headers={"Content-Disposition": f"attachment; filename={ds.id}.csv"},
+        )
+
+    # Standard JSON export
+    return PlainTextResponse(
+        json.dumps(ds.model_dump(), indent=2),
+        media_type="application/json",
+        headers={"Content-Disposition": f"attachment; filename={ds.id}.json"},
+    )
+
+@app.post("/api/playground/run", response_model=PlaygroundResponse)
+async def run_playground(payload: PlaygroundRequest):
+    """Execute single prompt sandbox test across selected models with live scoring."""
+    rendered_prompt = render_prompt_template(payload.prompt_template, payload.input_data)
+    
+    metrics = payload.metrics or [
+        ScoringMetricConfig(metric="semantic_similarity", weight=1.0, threshold=0.75),
+        ScoringMetricConfig(metric="levenshtein", weight=0.5, threshold=0.60),
+    ]
+    if payload.schema_definition:
+        metrics.append(ScoringMetricConfig(metric="json_schema", weight=1.5, threshold=1.0))
+
+    results: List[TestCaseResult] = []
+
+    for model in payload.models:
+        resp = await execute_prompt(
+            model=model,
+            prompt=rendered_prompt,
+            system_prompt=payload.system_prompt,
+            temperature=payload.temperature,
+            expected_output=payload.expected_output,
+        )
+
+        metrics_dicts = [m.model_dump() for m in metrics]
+        scores, composite, passed = evaluate_test_case(
+            actual=resp.output_text,
+            expected=payload.expected_output,
+            metrics=metrics_dicts,
+            schema_definition=payload.schema_definition,
+        )
+
+        cost = calculate_cost(
+            model=model,
+            prompt_tokens=resp.prompt_tokens,
+            completion_tokens=resp.completion_tokens,
+        )
+
+        results.append(
+            TestCaseResult(
+                test_case_id="sandbox-sample",
+                model=model,
+                actual_output=resp.output_text,
+                expected_output=payload.expected_output,
+                scores=scores,
+                composite_score=composite,
+                passed=passed,
+                latency_ms=resp.latency_ms,
+                prompt_tokens=resp.prompt_tokens,
+                completion_tokens=resp.completion_tokens,
+                total_tokens=resp.prompt_tokens + resp.completion_tokens,
+                estimated_cost=cost,
+                error=resp.error,
+            )
+        )
+
+    return PlaygroundResponse(
+        rendered_prompt=rendered_prompt,
+        results=results,
+    )
+
 @app.get("/api/runs", response_model=List[EvaluationRun])
 def get_all_runs(limit: int = Query(50, ge=1, le=200)):
     return list_runs(limit=limit)
@@ -147,6 +332,14 @@ def get_single_run(run_id: str):
         raise HTTPException(status_code=404, detail="Evaluation run not found")
     return run
 
+@app.get("/api/runs/{run_id}/report", response_class=HTMLResponse)
+def get_run_report_html(run_id: str):
+    """Serve a self-contained standalone HTML report for this run."""
+    run = get_run(run_id)
+    if not run:
+        raise HTTPException(status_code=404, detail="Evaluation run not found")
+    return HTMLResponse(content=generate_html_report(run))
+
 @app.post("/api/runs", response_model=EvaluationRun)
 async def create_evaluation_run(payload: RunRequest, background_tasks: BackgroundTasks):
     dataset = get_dataset(payload.dataset_id)
@@ -155,7 +348,6 @@ async def create_evaluation_run(payload: RunRequest, background_tasks: Backgroun
 
     metrics = payload.metrics
     if not metrics:
-        # Default metric set
         metrics = [
             ScoringMetricConfig(metric="semantic_similarity", weight=1.0, threshold=0.75),
             ScoringMetricConfig(metric="levenshtein", weight=0.5, threshold=0.60),
@@ -188,7 +380,6 @@ async def create_evaluation_run(payload: RunRequest, background_tasks: Backgroun
 
 @app.get("/api/runs/{run_id}/stream")
 async def stream_run_progress(run_id: str):
-    """Server-Sent Events streaming endpoint for matrix evaluation progress."""
     queue = asyncio.Queue()
     if run_id not in RUN_EVENT_QUEUES:
         RUN_EVENT_QUEUES[run_id] = []
@@ -196,7 +387,6 @@ async def stream_run_progress(run_id: str):
 
     async def event_generator():
         try:
-            # Send initial run state if already exists
             existing_run = get_run(run_id)
             if existing_run:
                 yield {

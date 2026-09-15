@@ -124,6 +124,57 @@ async def call_openai(
             error=str(e),
         )
 
+async def check_ollama_status() -> Dict[str, Any]:
+    """Probe local Ollama daemon for running status and installed models."""
+    try:
+        async with httpx.AsyncClient(timeout=1.5) as client:
+            resp = await client.get("http://localhost:11434/api/tags")
+            if resp.status_code == 200:
+                data = resp.json()
+                models = [m.get("name") for m in data.get("models", [])]
+                return {"online": True, "models": models}
+    except Exception:
+        pass
+    return {"online": False, "models": []}
+
+async def call_ollama(
+    model: str,
+    prompt: str,
+    system_prompt: Optional[str] = None,
+    temperature: float = 0.0,
+) -> ProviderResponse:
+    t0 = time.perf_counter()
+    clean_model = model.replace("ollama/", "")
+    try:
+        payload = {
+            "model": clean_model,
+            "prompt": prompt,
+            "stream": False,
+            "options": {"temperature": temperature},
+        }
+        if system_prompt:
+            payload["system"] = system_prompt
+
+        async with httpx.AsyncClient(timeout=60.0) as client:
+            resp = await client.post("http://localhost:11434/api/generate", json=payload)
+            resp.raise_for_status()
+            data = resp.json()
+            latency_ms = round((time.perf_counter() - t0) * 1000.0, 2)
+            return ProviderResponse(
+                output_text=data.get("response", ""),
+                prompt_tokens=data.get("prompt_eval_count", 0),
+                completion_tokens=data.get("eval_count", 0),
+                latency_ms=latency_ms,
+            )
+    except Exception as e:
+        return ProviderResponse(
+            output_text="",
+            prompt_tokens=0,
+            completion_tokens=0,
+            latency_ms=round((time.perf_counter() - t0) * 1000.0, 2),
+            error=f"Ollama execution error: {str(e)}",
+        )
+
 async def execute_prompt(
     model: str,
     prompt: str,
@@ -131,8 +182,12 @@ async def execute_prompt(
     temperature: float = 0.0,
     expected_output: Optional[str] = None,
 ) -> ProviderResponse:
-    """Unified entry point routing to mock or real LLM provider."""
+    """Unified entry point routing to mock, Ollama, or remote LLM provider."""
     normalized = model.lower().strip()
+
+    # Route to local Ollama if requested
+    if normalized.startswith("ollama/"):
+        return await call_ollama(model, prompt, system_prompt, temperature)
     
     # Check for mock models or missing API keys
     if normalized.startswith("mock-") or not os.getenv("OPENAI_API_KEY"):

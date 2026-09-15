@@ -150,3 +150,65 @@ export async function compareRuns(baseId: string, candidateId: string): Promise<
   if (!res.ok) throw new Error("Failed to compare runs");
   return res.json();
 }
+
+export interface PlaygroundRequest {
+  prompt_template: string;
+  input_data: Record<string, any>;
+  models: string[];
+  system_prompt?: string;
+  temperature?: number;
+  expected_output?: string | null;
+  schema_definition?: Record<string, any> | null;
+}
+
+export interface PlaygroundResponse {
+  rendered_prompt: string;
+  results: TestCaseResult[];
+}
+
+export async function runPlayground(payload: PlaygroundRequest): Promise<PlaygroundResponse> {
+  const res = await fetch(`${API_BASE}/api/playground/run`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) throw new Error("Playground execution failed");
+  return res.json();
+}
+
+export async function importDataset(payload: {
+  name: string;
+  description?: string;
+  format: "json" | "jsonl" | "csv";
+  content: string;
+}): Promise<Dataset> {
+  const res = await fetch(`${API_BASE}/api/datasets/import`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    const errData = await res.json().catch(() => ({ detail: "Import failed" }));
+    throw new Error(errData.detail || "Failed to import dataset");
+  }
+  return res.json();
+}
+
+export async function fetchOllamaStatus(): Promise<{ online: boolean; models: string[] }> {
+  try {
+    const res = await fetch(`${API_BASE}/api/providers/ollama`, { cache: "no-store" });
+    if (!res.ok) return { online: false, models: [] };
+    return res.json();
+  } catch {
+    return { online: false, models: [] };
+  }
+}
+
+export function getReportUrl(runId: string): string {
+  return `${API_BASE}/api/runs/${runId}/report`;
+}
+
+export function getExportUrl(datasetId: string, format: string): string {
+  return `${API_BASE}/api/datasets/${datasetId}/export?format=${format}`;
+}
+

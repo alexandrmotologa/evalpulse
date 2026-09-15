@@ -124,6 +124,45 @@ def validate_json_schema(output_text: str, schema: Dict[str, Any]) -> Tuple[bool
 
     return len(errors) == 0, errors, parsed
 
+def calculate_llm_judge_heuristic(actual: str, expected: Optional[str], rubric: str = "") -> Tuple[float, str]:
+    """
+    Evaluate response against custom rubric criteria.
+    Returns normalized score (0.0 to 1.0) and evaluation reasoning.
+    """
+    if not actual or not actual.strip():
+        return 0.0, "Empty response generated."
+
+    rubric_lower = rubric.lower()
+    base_score = 0.85
+    notes: List[str] = []
+
+    if "polite" in rubric_lower or "tone" in rubric_lower:
+        polite_markers = ["please", "thank", "hello", "hi", "regards", "appreciate", "help"]
+        if any(w in actual.lower() for w in polite_markers):
+            base_score += 0.10
+            notes.append("Tone adheres to politeness guideline.")
+        else:
+            base_score -= 0.15
+            notes.append("Tone lacks polite greeting or phrasing.")
+
+    if "concise" in rubric_lower or "brevity" in rubric_lower:
+        word_count = len(actual.split())
+        if word_count <= 80:
+            base_score += 0.05
+            notes.append("Satisfies brevity criterion.")
+        else:
+            base_score -= 0.10
+            notes.append(f"Word count ({word_count}) exceeds brevity target.")
+
+    if expected:
+        sim = calculate_semantic_similarity(actual, expected)
+        base_score = (base_score * 0.6) + (sim * 0.4)
+        notes.append(f"Semantic alignment score: {int(sim * 100)}%.")
+
+    final_score = round(min(max(base_score, 0.0), 1.0), 4)
+    explanation = " ".join(notes) if notes else "Rubric criteria satisfied."
+    return final_score, explanation
+
 def evaluate_test_case(
     actual: str,
     expected: Optional[str],
@@ -159,6 +198,9 @@ def evaluate_test_case(
             score = calculate_levenshtein_ratio(actual, expected or "")
         elif metric_type == "semantic_similarity":
             score = calculate_semantic_similarity(actual, expected or "")
+        elif metric_type == "llm_judge":
+            rubric = params.get("rubric", "Clarity, accuracy, and tone.")
+            score, _ = calculate_llm_judge_heuristic(actual, expected, rubric)
         elif metric_type == "json_schema":
             target_schema = params.get("schema") or schema_definition
             if target_schema:

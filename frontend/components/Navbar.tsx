@@ -1,14 +1,25 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Activity, Layers, GitCompare, Database, Plus, Github } from "lucide-react";
+import { Activity, Layers, GitCompare, Database, Plus, Github, Terminal, Cpu } from "lucide-react";
+import { fetchOllamaStatus } from "@/lib/api";
 
 export default function Navbar() {
   const pathname = usePathname();
+  const [ollama, setOllama] = useState<{ online: boolean; models: string[] }>({
+    online: false,
+    models: [],
+  });
+
+  useEffect(() => {
+    fetchOllamaStatus().then(setOllama).catch(() => {});
+  }, []);
 
   const navItems = [
     { href: "/", label: "Overview", icon: Activity },
+    { href: "/playground", label: "Playground", icon: Terminal },
     { href: "/runs/new", label: "New Matrix Run", icon: Plus },
     { href: "/compare", label: "Regression Diff", icon: GitCompare },
     { href: "/datasets", label: "Datasets", icon: Database },
@@ -56,6 +67,13 @@ export default function Navbar() {
         </div>
 
         <div className="flex items-center gap-3">
+          {ollama.online && (
+            <div className="hidden lg:flex items-center gap-1.5 rounded-full border border-cyan-500/20 bg-cyan-500/10 px-2.5 py-1 text-xs text-cyan-300">
+              <Cpu className="h-3 w-3 text-cyan-400" />
+              <span>Ollama ({ollama.models.length} models)</span>
+            </div>
+          )}
+
           <div className="hidden sm:flex items-center gap-2 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-2.5 py-1 text-xs text-emerald-400">
             <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
             Engine Active
